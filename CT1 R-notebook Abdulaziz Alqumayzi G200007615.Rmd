@@ -1,0 +1,272 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Critical Thinking 1
+# 
+#### Course Code: DS-610
+#### Course Name: Advanced Applied Statistics
+#### Module: 03
+#
+#### Student ID: G200007615
+#### Student Name: Abdulaziz Alqumayzi
+#### CRN: 15057
+
+**Goal: Predict whether a song will reach a spot in the Top 10 of the Billboard Hot 100 Chart.**
+
+Description of the variables:
+
+- year = the year the song was released
+- songtitle = the title of the song
+- artistname = the name of the artist of the song
+- songID and artistID = identifying variables for the song and artist
+- timesignature and timesignature_confidence = a variable estimating the time signature of thesong, and the confidence in the estimate
+- loudness = a continuous variable indicating the average amplitude of the audio in decibels
+- tempo and tempo_confidence = a variable indicating the estimated beats per minute of thesong, and the confidence in the estimate
+- key and key_confidence = a variable with twelve levels indicating the estimated key of the song(C, C#, . . ., B), and the confidence in the estimate
+- energy = a variable that represents the overall acoustic energy of the song, using a mix offeatures such as loudness
+- pitch = a continuous variable that indicates the pitch of the song
+- timbre_0_min, timbre_0_max, timbre_1_min, timbre_1_max, . . . , timbre_11_min, andtimbre_11_max = variables that indicate the minimum/maximum values over all segments foreach of the twelve values in the timbre vector (resulting in 24 continuous variables)
+- Top10 = a binary variable indicating whether or not the song made it to the Top 10 of theBillboard Hot 100 Chart (1 if it was in the top 10, and 0 if it was not)
+
+
+#### Preprocessing 
+
+```{r}
+# import libraries
+library(mlogit)
+library(dfidx)
+library(stats)
+
+# read data 
+songs <- read.csv("~/Master DS/Level-3/DS-610 Advanced Statistics/Critical Thinking/CT1/songs.csv")
+View(songs)
+
+# check duplicates 
+length(unique(songs$songID)) == nrow(songs)
+
+```
+
+#### Tasks: 
+
+Task 1:
+
+a.Specify the total number of observations in the dataset
+
+```{r}
+# Specify the total number of observations
+nrow(songs)
+
+```
+Number of observations are 7574.
+
+b.Which artist has the most number of songs in the dataset?
+
+```{r}
+# the artist has the most number of songs in the dataset
+sort(table(songs$artistname),decreasing=TRUE)[1:5]
+
+```
+The artist who has the most number of songs is Anal Cunt. since "Various artists" and "Various Artists" which indicate the same meaning are not an artist.
+
+c.Split the data into training set (all songs before 2010) and test set (songs in 2010).
+
+```{r}
+# split data to training and testing sets 
+train <- songs[songs$year < 2010,]
+test <- songs[songs$year == 2010,]
+
+```
+d.How many samples are there in training set and test set respectively?
+
+```{r}
+# Specify the total number of observations in traning and testing sets
+nrow(train)
+nrow(test)
+
+```
+
+Task 2: 
+
+Exclude the following variables from the model: "year", "songtitle", "artistname","songID", and "artistID"). 
+Build a logistic regression model that predicts whether a song will be in the top 10.
+
+```{r}
+# excluding the following variables from the model: "year", "songtitle", "artistname","songID", and "artistID").
+drops <- c("year","songtitle","artistname","songID","artistID")
+train <- train[ , !(names(train) %in% drops)]
+test <- test[ , !(names(test) %in% drops)]
+
+# change Top10 variable type to factor 
+songs$Top10 <- as.factor(songs$Top10)
+
+# build a logistic regression model to predict whether a song will be in the top 10
+glm_model <- glm(Top10 ~ timesignature + timesignature_confidence + loudness + tempo +
+                  tempo_confidence + key + key_confidence + energy + pitch + timbre_0_min +
+                  timbre_0_max + timbre_1_min + timbre_1_max + timbre_2_min + timbre_2_max + 
+                  timbre_3_min + timbre_5_max + timbre_6_min + timbre_6_max + timbre_7_min +
+                  timbre_7_max + timbre_8_min + timbre_8_max + timbre_9_min + timbre_9_max + 
+                  timbre_10_min + timbre_10_max + timbre_11_min + timbre_11_max, data =  train,
+                 family = binomial())
+
+
+# predicting our model on the test dataset
+predicted = predict(glm_model, newdata = test, type = 'response')
+predicted
+
+```
+
+Task 3: Provide a table of your model summary
+
+```{r}
+# a table of the model summary
+summary(glm_model)
+
+```
+
+
+Task 4: Investigating model summary:
+
+a.Which parameters are not significant at 5% significance level. 
+
+The parameters that don't have star, 2 starts or 3 stars sign on the right side of them.
+
+The parameters: timesignature, tempo, timbre_1_max, timbre_2_max, timbre_3_min, timbre_5_max, timbre_8_min, timbre_8_max, timbre_9_min, timbre_9_max
+
+b.Songs with heavier instrumentation tend to be louder (have higher values in the variable "loudness"). Do mainstream users prefer song with heavier or lighter instrumentation?
+
+```{r}
+# a summary of loudness variable
+summary(songs$loudness)
+```
+
+The fact is whe the loudness vaiable near to zero means the sound is quite.
+From the summary above, we can see the mean and median are between -7.6 and -8.8 values, the first quartile is -10.8 and the third quartile is -5.6. So most of the songs heard in this app are ranged between -5.6 and -8.8 decibels. That means users of this app are mostly prefer to hearing songs with lighter instruments. 
+
+Task 5: Consider the 3 baseline models and provide accuracy score in test set for each model:
+
+a.Predict each song to be in top 10
+
+```{r}
+# matrix model to predict each song to be in top 10 using 0.35 threshold
+matrix_in_top10 <- table(Actual_value= test$Top10, Predicted_value= predicted >=0.35)
+matrix_in_top10
+
+```
+
+The number of songs to be in the top 10 from the test dataset are 20 songs.
+
+b.Predict each song to be not in top 10
+
+```{r}
+# simple model to predict each song not to be in top 10 using 0 threshold
+not_in_top10 <- table(Actual_value= test$Top10, Predicted_value= predicted >=0)
+not_in_top10
+
+```
+
+The number of songs to be not in the top 10 from the test dataset are 314 songs.
+
+c.Randomly predict a song to be in top 10 with probability 0.2
+
+```{r}
+# matrix to randomly predict a song to be in top 10 with probability 0.2
+table(Actual_value= test$Top10, Predicted_value= predicted >=0.2)
+
+```
+
+The number of songs to be in the top 10 using probability of 0.2 from the test dataset are 36 songs
+
+d.Randomly predict a song to be in top 10 with probability 0.5
+
+```{r}
+# matrix to randomly predict a song to be in top 10 with probability 0.5
+table(Actual_value= test$Top10, Predicted_value= predicted >=0.5)
+
+
+```
+
+The number of songs to be in the top 10 using probability of 0.5 from the test dataset are 10 songs
+
+Task 6: Provide your model performance on the test set using the following 3 metrics (Use a different threshold ):
+
+```{r}
+# the model that we built 
+matrix_in_top10
+```
+
+a. Accuracy score
+
+```{r}
+# accuracy score
+((matrix_in_top10[[1,1]] + matrix_in_top10[[2,2]])/sum(matrix_in_top10))*100
+
+```
+
+Accuracy score is 86.32%
+
+b. True Positive Rate
+
+```{r}
+# True Positive Rate
+(matrix_in_top10[[2,2]]/(matrix_in_top10[[2,2]]+matrix_in_top10[[1,2]]))*100
+
+```
+
+The ratio of True Positive is 62.5%
+
+c. False positive Rate
+
+```{r}
+# False positive Rate
+(1-(matrix_in_top10[[2,2]]/(matrix_in_top10[[2,2]]+matrix_in_top10[[1,2]])))*100
+
+```
+
+The ratio of False Positive is 37.5%
+
+Task 7: Provide your model performance on the test set using the following 3 metrics (Use threshold = 0.45):
+
+```{r}
+#matrix model to predict each song to be in top 10 using 0.45 threshold
+matrix <- table(Actual_value= test$Top10, Predicted_value= predicted >=0.45)
+matrix
+```
+
+a. Accuracy score
+```{r}
+# accuracy score
+((matrix[[1,1]] + matrix[[2,2]])/sum(matrix))*100
+
+```
+
+Accuracy score is 87.13%
+
+b. True Positive Rate
+
+```{r}
+# True Positive Rate
+(matrix[[2,2]]/(matrix[[2,2]]+matrix[[1,2]]))*100
+
+```
+
+The ratio of True Positive is 92.3%
+
+c. False positive Rate
+
+```{r}
+# False positive Rate
+(1-(matrix[[2,2]]/(matrix[[2,2]]+matrix[[1,2]])))*100
+
+```
+
+The ratio of False Positive is 7.69%
+
+**References:**
+
+Ferrari, P. (2018, August 9). Logistic regression in R | logistic regression in R example | data science algorithms | simplilearn. YouTube. Retrieved October 2, 2021, from https://www.youtube.com/watch?v=XycruVLySDg. 
+
+Chang, J. (2016). Predict the Top 10 of the Billboard. rstudio-pubs-static.s3.amazonaws.com. Retrieved October 2, 2021, from https://rstudio-pubs-static.s3.amazonaws.com/178029_dc0439885a694643a400fca032e7edb9.html. 
+
+Field, A. P., Miles, J., &amp; Field Zoë. (2017). Discovering statistics using R. W. Ross MacDonald School Resource Services Library. 
